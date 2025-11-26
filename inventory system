@@ -1,3 +1,389 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h> // For sleep function (simulates processing delay)
+
+// --- GLOBAL DEFINITIONS (Common to all members) ---
+
+// Define the structure for a single product (used by all modules)
+typedef struct {
+    int code;
+    char name[50];
+    float price;
+    int stock;
+} Product;
+
+// Global variables for the dynamically allocated inventory
+Product *inventory = NULL;
+int product_count = 0;
+const float SALES_TAX_RATE = 0.10; // 10% tax rate
+
+// Function prototypes to allow all modules to call each other
+void initializeInventory();
+void cleanupInventory();
+void addProduct();
+void displayInventory();
+int findProductIndex(int code);
+void updateProduct();
+void processBill();
+void applyDiscountsAndTax(float subtotal);
+void printWelcomeBanner();
+
+
+// =========================================================
+// TEAM MEMBER 1: INVENTORY DATA MANAGEMENT (Core)
+// Focus: Structures, Pointers, Dynamic Memory Allocation (CO3, CO4)
+// Tasks: Define structure, initialize, add, and display products.
+// =========================================================
+
+/**
+ * @brief Initializes the inventory with some sample data.
+ */
+void initializeInventory() {
+    // Start with 3 products
+    product_count = 3;
+    inventory = (Product *)malloc(product_count * sizeof(Product));
+
+    if (inventory == NULL) {
+        printf("\n[ERROR] Failed to allocate initial memory. Exiting.\n");
+        exit(1);
+    }
+
+    // Populate initial data
+    inventory[0] = (Product){101, "Laptop", 85000.00, 15};
+    inventory[1] = (Product){102, "Mouse", 850.50, 50};
+    inventory[2] = (Product){103, "Monitor", 15500.00, 20};
+
+    printf("\n[STATUS] Initial inventory loaded with %d products.\n", product_count);
+}
+
+/**
+ * @brief Adds a new product to the dynamically managed inventory array.
+ */
+void addProduct() {
+    int new_code;
+    printf("\n--- Add New Product ---\n");
+    printf("Enter Product Code: ");
+    if (scanf("%d", &new_code) != 1) {
+        printf("[ERROR] Invalid input. Returning to menu.\n");
+        while (getchar() != '\n'); // Clear buffer
+        return;
+    }
+
+    // Check if product already exists
+    if (findProductIndex(new_code) != -1) {
+        printf("[ERROR] Product with code %d already exists.\n", new_code);
+        return;
+    }
+
+    // Dynamically reallocate memory for one more product
+    Product *temp = (Product *)realloc(inventory, (product_count + 1) * sizeof(Product));
+    if (temp == NULL) {
+        printf("[ERROR] Failed to allocate memory for new product. Operation failed.\n");
+        return;
+    }
+    inventory = temp; // Update global pointer
+
+    Product *new_product = &inventory[product_count];
+    new_product->code = new_code;
+
+    printf("Enter Name (max 49 chars): ");
+    scanf(" %49s", new_product->name); // Read string safely
+
+    printf("Enter Price: ");
+    scanf("%f", &new_product->price);
+
+    printf("Enter Stock Quantity: ");
+    scanf("%d", &new_product->stock);
+
+    product_count++;
+    printf("\n[SUCCESS] Product '%s' added to inventory.\n", new_product->name);
+    // Clear buffer after all inputs
+    while (getchar() != '\n');
+}
+
+/**
+ * @brief Displays the current contents of the entire inventory.
+ */
+void displayInventory() {
+    printf("\n======================================================\n");
+    printf("|                CURRENT INVENTORY STOCK               |\n");
+    printf("======================================================\n");
+    printf("| %-5s | %-20s | %-10s | %-6s |\n", "CODE", "NAME", "PRICE", "STOCK");
+    printf("------------------------------------------------------\n");
+
+    if (product_count == 0) {
+        printf("| No products currently in stock.                      |\n");
+    } else {
+        for (int i = 0; i < product_count; i++) {
+            printf("| %-5d | %-20s | %-10.2f | %-6d |\n",
+                   inventory[i].code,
+                   inventory[i].name,
+                   inventory[i].price,
+                   inventory[i].stock);
+        }
+    }
+    printf("======================================================\n");
+}
+
+/**
+ * @brief Frees the dynamically allocated memory before exiting.
+ */
+void cleanupInventory() {
+    if (inventory != NULL) {
+        free(inventory);
+        inventory = NULL;
+        printf("\n[INFO] Inventory memory successfully freed.\n");
+    }
+}
+
+
+// =========================================================
+// TEAM MEMBER 2: INVENTORY MAINTENANCE (Features)
+// Focus: Loops, Search, Update (CO2, CO4)
+// Tasks: Implement product search and update features.
+// =========================================================
+
+/**
+ * @brief Searches for a product by code and returns its index in the inventory array.
+ * @param code The product code to search for.
+ * @return The index of the product, or -1 if not found.
+ */
+int findProductIndex(int code) {
+    for (int i = 0; i < product_count; i++) {
+        if (inventory[i].code == code) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @brief Allows a user to search for and update the price or stock of a product.
+ */
+void updateProduct() {
+    int code_to_find, index, choice;
+    printf("\n--- Update Product Details ---\n");
+    printf("Enter Product Code to update: ");
+    if (scanf("%d", &code_to_find) != 1) {
+        printf("[ERROR] Invalid input. Returning to menu.\n");
+        while (getchar() != '\n');
+        return;
+    }
+
+    index = findProductIndex(code_to_find);
+
+    if (index == -1) {
+        printf("[ERROR] Product with code %d not found.\n", code_to_find);
+        return;
+    }
+
+    Product *p = &inventory[index];
+    printf("\nFound Product: %s (Current Price: %.2f, Stock: %d)\n", p->name, p->price, p->stock);
+
+    printf("What do you want to update?\n");
+    printf("1. Price\n");
+    printf("2. Stock Quantity\n");
+    printf("Enter choice (1 or 2): ");
+
+    if (scanf("%d", &choice) != 1 || (choice != 1 && choice != 2)) {
+        printf("[ERROR] Invalid choice.\n");
+        while (getchar() != '\n');
+        return;
+    }
+
+    if (choice == 1) {
+        float new_price;
+        printf("Enter NEW Price: ");
+        scanf("%f", &new_price);
+        p->price = new_price;
+        printf("\n[SUCCESS] Price for %s updated to %.2f.\n", p->name, p->price);
+    } else if (choice == 2) {
+        int new_stock;
+        printf("Enter NEW Stock Quantity: ");
+        scanf("%d", &new_stock);
+        p->stock = new_stock;
+        printf("\n[SUCCESS] Stock for %s updated to %d.\n", p->name, p->stock);
+    }
+    while (getchar() != '\n');
+}
+
+
+// =========================================================
+// TEAM MEMBER 3: BILLING AND TRANSACTION LOGIC
+// Focus: Loops, Stock Check, Inventory Update (CO2, CO3)
+// Tasks: Manage the multi-item billing process and update stock.
+// =========================================================
+
+/**
+ * @brief Handles the multi-item billing process.
+ */
+void processBill() {
+    int code, quantity, index;
+    char add_more = 'y';
+    float subtotal = 0.0;
+
+    printf("\n--- Start New Billing Transaction ---\n");
+
+    // Loop for multi-item billing
+    while (add_more == 'y' || add_more == 'Y') {
+        printf("\nEnter Product Code: ");
+        if (scanf("%d", &code) != 1) {
+            printf("[ERROR] Invalid input.\n");
+            while (getchar() != '\n');
+            continue;
+        }
+
+        index = findProductIndex(code); // Use Member 2's search function
+
+        if (index == -1) {
+            printf("[INFO] Product not found. Please try again.\n");
+            continue;
+        }
+
+        Product *p = &inventory[index];
+
+        printf("Enter Quantity (Max %d in stock): ", p->stock);
+        if (scanf("%d", &quantity) != 1 || quantity <= 0) {
+            printf("[ERROR] Invalid quantity.\n");
+            while (getchar() != '\n');
+            continue;
+        }
+
+        // Decision-making: Stock Check
+        if (quantity > p->stock) {
+            printf("[WARNING] Insufficient stock. Cannot add %d units of %s.\n", quantity, p->name);
+        } else {
+            float item_cost = p->price * quantity;
+            subtotal += item_cost;
+            p->stock -= quantity; // Update stock *immediately*
+            printf("[ADDED] %d x %s @ %.2f. Cost: %.2f. Subtotal: %.2f\n",
+                   quantity, p->name, p->price, item_cost, subtotal);
+        }
+
+        // Loop control decision
+        printf("\nAdd another item? (y/n): ");
+        scanf(" %c", &add_more);
+        while (getchar() != '\n');
+    }
+
+    if (subtotal > 0) {
+        applyDiscountsAndTax(subtotal); // Pass to Member 4 for final calculation
+    } else {
+        printf("\nTransaction cancelled or no items added.\n");
+    }
+}
+
+
+// =========================================================
+// TEAM MEMBER 4: FINANCIAL & USER INTERFACE (UI)
+// Focus: Decision Making, Program Flow, Output (CO1, CO5)
+// Tasks: Apply tax/discounts, build the main menu, and integrate all modules.
+// =========================================================
+
+/**
+ * @brief Calculates and prints the final bill with taxes and conditional discounts.
+ * @param subtotal The running total before discounts and tax.
+ */
+void applyDiscountsAndTax(float subtotal) {
+    float discount_rate = 0.0; // 0%
+    float discount_amount = 0.0;
+    float taxable_amount;
+    float tax_amount;
+    float final_total;
+
+    // Decision-making statements for conditional offers
+    if (subtotal >= 20000.0) {
+        discount_rate = 0.15; // 15% off for large orders
+        printf("\n*** CONGRATULATIONS! ***\n");
+        printf("A large order discount of 15%% has been applied!\n");
+    } else if (subtotal >= 5000.0) {
+        discount_rate = 0.05; // 5% off for mid-size orders
+        printf("\n*** Offer Applied! ***\n");
+        printf("A 5%% discount has been applied for orders over 5000!\n");
+    }
+
+    discount_amount = subtotal * discount_rate;
+    taxable_amount = subtotal - discount_amount;
+    tax_amount = taxable_amount * SALES_TAX_RATE;
+    final_total = taxable_amount + tax_amount;
+
+    // Print Final Bill
+    printf("\n============================================\n");
+    printf("|          SMART BILLING RECEIPT           |\n");
+    printf("============================================\n");
+    printf("| Subtotal:             | %15.2f |\n", subtotal);
+    printf("| Discount (%2.0f%%):      | - %13.2f |\n", discount_rate * 100, discount_amount);
+    printf("| Taxable Amount:       | %15.2f |\n", taxable_amount);
+    printf("| Sales Tax (%2.0f%%):    | + %13.2f |\n", SALES_TAX_RATE * 100, tax_amount);
+    printf("--------------------------------------------\n");
+    printf("| FINAL TOTAL:          | %15.2f |\n", final_total);
+    printf("============================================\n");
+    sleep(2); // Simulate processing time
+}
+
+/**
+ * @brief Prints a welcoming banner for the console application.
+ */
+void printWelcomeBanner() {
+    printf("\n\n#####################################################\n");
+    printf("#  WELCOME TO THE SMART BILLING & INVENTORY SYSTEM  #\n");
+    printf("#####################################################\n");
+}
+
+/**
+ * @brief Main entry point. Contains the primary menu loop (Program Flow).
+ */
+int main() {
+    int choice;
+    initializeInventory(); // Call Member 1's initialization
+
+    printWelcomeBanner();
+
+    // Main menu loop
+    do {
+        printf("\n-----------------------------------------------------\n");
+        printf("MAIN MENU - Please select an option:\n");
+        printf("1. Add New Product (Member 1)\n");
+        printf("2. Display All Inventory (Member 1)\n");
+        printf("3. Search/Update Product (Member 2)\n");
+        printf("4. Start New Billing (Member 3)\n");
+        printf("5. Exit System\n");
+        printf("Enter your choice: ");
+
+        if (scanf("%d", &choice) != 1) {
+            printf("[ERROR] Invalid input. Please enter a number.\n");
+            while (getchar() != '\n'); // Clear buffer on bad input
+            choice = 0; // Prevent infinite loop
+        }
+
+        // Decision-making: Menu selection (Switch statement)
+        switch (choice) {
+            case 1:
+                addProduct(); // Member 1
+                break;
+            case 2:
+                displayInventory(); // Member 1
+                break;
+            case 3:
+                updateProduct(); // Member 2
+                break;
+            case 4:
+                processBill(); // Member 3
+                break;
+            case 5:
+                printf("\nExiting System. Thank you!\n");
+                break;
+            default:
+                printf("[WARNING] Invalid choice. Please try again.\n");
+                break;
+        }
+
+    } while (choice != 5);
+
+    cleanupInventory(); // Call Member 1's cleanup
+    return 0;
+}
