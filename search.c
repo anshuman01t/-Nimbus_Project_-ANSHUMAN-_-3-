@@ -3,8 +3,6 @@
 #include <stdlib.h>  
 #include <string.h>  
 
-// NOTE: Struct definition is repeated here, but should be replaced by #include "project.h" 
-// when compiled by the team.
 struct Product {
     int product_code;           
     char product_name[50];      
@@ -12,15 +10,14 @@ struct Product {
     int stock_quantity;         
 };
 
-// Function to find a product's location (index) in the array using its code
+// Function to find a product location in the array using its code
 int findProductIndex(struct Product *inventory, int product_count, int product_code) {
     // Loop through the entire inventory array, checking every item
     for (int i = 0; i < product_count; i++) {
-        // If the code matches, we found it!
         if (inventory[i].product_code == product_code)
-            return i; // Send back the position (index)
+            return i; // Send back the position 
     }
-    return -1; // If the loop finishes, the product was not found, so send back -1
+    return -1; // If the loop finishes, the product was not found
 }
 
 // Function to change the price or stock quantity of an existing product
@@ -29,13 +26,12 @@ void modifyProductDetails(struct Product *inventory, int product_count) {
     
     printf("\n--- Modify Inventory Details ---\n");
     printf("Enter Product Code you want to modify: ");
-    // Reading product code (number)
     scanf("%d", &code_to_modify);
     
     // Find where the product is located in the array
     found_index = findProductIndex(inventory, product_count, code_to_modify);
     
-    // If the search failed (index is -1), show error
+    // If the search failed then it shows error
     if (found_index == -1) {
         printf("[ERROR] Product code %d was not found.\n", code_to_modify);
         return;
@@ -53,17 +49,17 @@ void modifyProductDetails(struct Product *inventory, int product_count) {
     printf("2. Add Stock Quantity\n");
     printf("Enter choice (1 or 2): ");
     
-    // Reading choice (number)
+    // Reading choice
     if (scanf("%d", &update_choice) != 1 || (update_choice != 1 && update_choice != 2)) {
         printf("[ERROR] Invalid choice. Returning to menu.\n");
         return;
     }
 
-    // 'if-else' logic to handle the user's choice
+    // if & else logic to handle the user choice
     if (update_choice == 1) {
         float new_price;
         printf("Enter the NEW Unit Price: ");
-        // Reading new price (float)
+        // Reading new price
         scanf("%f", &new_price);
         
         // Change the price in the structure
@@ -72,11 +68,12 @@ void modifyProductDetails(struct Product *inventory, int product_count) {
     } else if (update_choice == 2) {
         int quantity_to_add;
         printf("Enter Quantity to ADD to existing stock: ");
-        // Reading quantity to add (number)
+        // Reading quantity to add
         scanf("%d", &quantity_to_add);
         
         // Add the new quantity to the existing stock
         inventory[found_index].stock_quantity += quantity_to_add;
         printf("[SUCCESS] Stock updated. New stock is %d.\n", inventory[found_index].stock_quantity);
     }
+
 }
